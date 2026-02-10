@@ -11,7 +11,7 @@ This project is structured as a standard Python package. You should run it direc
    ```bash
    pip install pgzero
    python main.py
-
+   ```
 The original cavern.py has been refactored into a modular architecture:
 
     src/app.py: Contains the main state machine that owns the current screen.
