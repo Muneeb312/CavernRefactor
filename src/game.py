@@ -1,12 +1,13 @@
 from random import shuffle, randint
-from pgzero.builtins import sounds, screen
 from src.common import *
-from src.entities.actors import Player, Robot, Fruit, Bolt, Pop, Orb
+from src.entities.actors import Robot, Fruit, Bolt, Pop, Orb
 
 class Game:
     def __init__(self, app, player=None):
         self.app = app
         self.player = player
+        
+        # Link player back to game if player exists
         if self.player:
             self.player.game = self
 
@@ -20,14 +21,18 @@ class Game:
         self.orbs = []
         self.pending_enemies = []
         self.timer = 0
+        
+        # Start the first level
         self.next_level()
 
     def block(self, x, y):
+        # Access grid safely
         grid_x = (x - LEVEL_X_OFFSET) // GRID_BLOCK_SIZE
         grid_y = y // GRID_BLOCK_SIZE
         if 0 < grid_y < NUM_ROWS:
-            row = self.grid[grid_y]
-            return 0 <= grid_x < NUM_COLUMNS and len(row) > 0 and row[grid_x] != " "
+            if grid_y < len(self.grid):
+                row = self.grid[grid_y]
+                return 0 <= grid_x < NUM_COLUMNS and len(row) > 0 and row[grid_x] != " "
         return False
 
     def fire_probability(self):
@@ -39,8 +44,11 @@ class Game:
     def next_level(self):
         self.level_colour = (self.level_colour + 1) % 4
         self.level += 1
+        
+        # Load level data
         self.grid = LEVELS[self.level % len(LEVELS)]
         self.grid = self.grid + [self.grid[0]]
+        
         self.timer = -1
 
         if self.player:
@@ -52,12 +60,14 @@ class Game:
         self.pops = []
         self.orbs = []
 
+        # Calculate enemy counts
         num_enemies = 10 + self.level
         num_strong_enemies = 1 + int(self.level / 1.5)
         num_weak_enemies = num_enemies - num_strong_enemies
 
         self.pending_enemies = num_strong_enemies * [Robot.TYPE_AGGRESSIVE] + num_weak_enemies * [Robot.TYPE_NORMAL]
         shuffle(self.pending_enemies)
+        
         self.play_sound("level", 1)
 
     def get_robot_spawn_x(self):
@@ -71,41 +81,54 @@ class Game:
     def update(self, input_state=None):
         self.timer += 1
         
+        # Update player if it exists
         if self.player and input_state:
             self.player.update(input_state)
 
+        # Update all other entities
         for obj in self.fruits + self.bolts + self.enemies + self.pops + self.orbs:
             if obj: obj.update()
 
+        # Clean up dead objects
         self.fruits = [f for f in self.fruits if f.time_to_live > 0]
         self.bolts = [b for b in self.bolts if b.active]
         self.enemies = [e for e in self.enemies if e.alive]
         self.pops = [p for p in self.pops if p.timer < 12]
         self.orbs = [o for o in self.orbs if o.timer < 250 and o.y > -40]
 
+        # Spawn fruit
         if self.timer % 100 == 0 and len(self.pending_enemies + self.enemies) > 0:
             self.fruits.append(Fruit(self, (randint(70, 730), randint(75, 400))))
 
+        # Spawn enemies
         if self.timer % 81 == 0 and len(self.pending_enemies) > 0 and len(self.enemies) < self.max_enemies():
             robot_type = self.pending_enemies.pop()
             pos = (self.get_robot_spawn_x(), -30)
             self.enemies.append(Robot(self, pos, robot_type))
 
+        # Check Level End
         if len(self.pending_enemies + self.fruits + self.enemies + self.pops) == 0:
             if len([orb for orb in self.orbs if orb.trapped_enemy_type is not None]) == 0:
                 self.next_level()
 
     def draw(self):
+        # Use GameContext to get the screen
+        screen = GameContext.screen
+        if not screen: return
+
         screen.blit("bg%d" % self.level_colour, (0, 0))
+        
         block_sprite = "block" + str(self.level % 4)
         for row_y in range(NUM_ROWS):
-            row = self.grid[row_y]
-            if len(row) > 0:
-                x = LEVEL_X_OFFSET
-                for b in row:
-                    if b != ' ': screen.blit(block_sprite, (x, row_y * GRID_BLOCK_SIZE))
-                    x += GRID_BLOCK_SIZE
+            if row_y < len(self.grid):
+                row = self.grid[row_y]
+                if len(row) > 0:
+                    x = LEVEL_X_OFFSET
+                    for b in row:
+                        if b != ' ': screen.blit(block_sprite, (x, row_y * GRID_BLOCK_SIZE))
+                        x += GRID_BLOCK_SIZE
         
+        # Draw entities
         all_objs = self.fruits + self.bolts + self.enemies + self.pops + self.orbs
         if self.player: all_objs.append(self.player)
         for obj in all_objs:
@@ -113,6 +136,9 @@ class Game:
 
     def draw_status(self):
         if not self.player: return
+        screen = GameContext.screen
+        if not screen: return
+
         s = str(self.player.score)
         draw_text(s, 451, WIDTH - 2 - (CHAR_WIDTH[0] * len(s)))
         draw_text("LEVEL " + str(self.level + 1), 451)
@@ -129,7 +155,9 @@ class Game:
     def play_sound(self, name, count=1):
         if self.player:
             try:
-                sound = getattr(sounds, name + str(randint(0, count - 1)))
-                sound.play()
+                # Use GameContext to access sounds
+                if GameContext.sounds:
+                    sound = getattr(GameContext.sounds, name + str(randint(0, count - 1)))
+                    sound.play()
             except Exception:
                 pass

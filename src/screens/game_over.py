@@ -1,4 +1,4 @@
-from pgzero.builtins import screen
+from src.common import GameContext
 
 class GameOverScreen:
     def __init__(self, app, previous_game):
@@ -13,4 +13,5 @@ class GameOverScreen:
     def draw(self):
         self.game.draw()
         self.game.draw_status()
-        screen.blit("over", (0, 0))
+        if GameContext.screen:
+            GameContext.screen.blit("over", (0, 0))

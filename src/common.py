@@ -1,5 +1,12 @@
 import sys
-from pgzero.builtins import screen
+# REMOVE THIS LINE: from pgzero.builtins import screen 
+
+# --- ADD THIS ---
+class GameContext:
+    screen = None
+    keyboard = None
+    sounds = None
+# ----------------
 
 # Constants
 WIDTH = 800
@@ -60,5 +67,6 @@ def draw_text(text, y, x=None):
     if x is None:
         x = (WIDTH - sum([char_width(c) for c in text])) // 2
     for char in text:
-        screen.blit("font0"+str(ord(char)), (x, y))
+        # Use GameContext.screen instead of screen
+        GameContext.screen.blit("font0"+str(ord(char)), (x, y))
         x += char_width(char)

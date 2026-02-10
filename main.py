@@ -1,6 +1,12 @@
+import sys
+import os
+
+# Add the current directory to sys.path so 'src' can be found
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
 import pgzrun
 import pygame
-import sys
 from pgzero.builtins import music
 from src.app import CavernApp
 from src.common import WIDTH, HEIGHT, TITLE
